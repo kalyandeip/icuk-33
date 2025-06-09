@@ -1,14 +1,24 @@
 # Stage 1: Build the application
-FROM eclipse-temurin:17-jdk-alpine AS build
+FROM maven:3.9.4-eclipse-temurin-17-alpine AS build
 WORKDIR /app
 COPY pom.xml .
+RUN mvn dependency:go-offline -B
 COPY src ./src
 RUN mvn clean package -DskipTests
 
-# Stage 2: Create a minimal runtime image
-FROM eclipse-temurin:17-jre-alpine
+# Stage 2: Create minimal Java runtime with JLink
+FROM eclipse-temurin:17-jdk-alpine AS jlink
+RUN $JAVA_HOME/bin/jlink \
+    --module-path $JAVA_HOME/jmods \
+    --add-modules java.base,java.logging,java.xml,java.naming,java.sql,java.management,java.instrument,jdk.unsupported,java.desktop,java.security.jgss \
+    --output /javaruntime \
+    --compress=2 --no-header-files --no-man-pages
+
+# Stage 3: Final Stage
+FROM alpine:3.17
 WORKDIR /app
-COPY --from=build /app/target/my-app-1.0-SNAPSHOT.jar app.jar
-USER 1000
+COPY --from=jlink /javaruntime /opt/java-minimal
+ENV PATH="/opt/java-minimal/bin:$PATH"
+COPY --from=build /app/target/*.jar /app/app.jar
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
