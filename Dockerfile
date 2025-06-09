@@ -1,14 +1,14 @@
-# Use OpenJDK 17 as the base image
-FROM openjdk:17-jdk-slim
-
-# Set the working directory inside the container
+# Stage 1: Build the application
+FROM eclipse-temurin:17-jdk-slim AS build
 WORKDIR /app
+COPY pom.xml .
+COPY src ./src
+RUN mvn clean package -DskipTests
 
-# Copy the JAR file into the container
-COPY target/my-app-1.0-SNAPSHOT.jar /app/app.jar
-
-# Expose port 8080 to the outside world
+# Stage 2: Create a minimal runtime image
+FROM eclipse-temurin:17-jre-slim
+WORKDIR /app
+COPY --from=build /app/target/my-app-1.0-SNAPSHOT.jar app.jar
+USER 1000
 EXPOSE 8080
-
-# Command to run the application
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
