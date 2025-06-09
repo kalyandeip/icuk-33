@@ -6,7 +6,7 @@ COPY src ./src
 RUN mvn clean package -DskipTests
 
 # Stage 2: Create a minimal runtime image
-FROM eclipse-temurin:17-jre-slim
+FROM eclipse-temurin:17-jre-focal
 WORKDIR /app
 COPY --from=build /app/target/my-app-1.0-SNAPSHOT.jar app.jar
 USER 1000
